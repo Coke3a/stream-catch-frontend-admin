@@ -11,16 +11,25 @@ import Pagination from '@/components/Pagination';
 import StatusBadge from '@/components/StatusBadge';
 import CopyButton from '@/components/CopyButton';
 import { createSupabaseBrowserClient } from '@/lib/supabase/client';
-import { AdminUserRow, SubscriptionRow } from '@/types/admin';
+import { AdminUserRow, PlanRow, SubscriptionRow } from '@/types/admin';
 import { formatDateTime, isUuid, truncateId } from '@/lib/utils/format';
 
 const PAGE_SIZE = 20;
+
+type PlanSummary = Pick<PlanRow, 'id' | 'name'>;
+
+type SubscriptionListRow = Pick<
+  SubscriptionRow,
+  'id' | 'user_id' | 'status' | 'starts_at' | 'ends_at'
+> & {
+  plan?: PlanSummary | PlanSummary[] | null;
+};
 
 export default function UsersPage() {
   const supabase = useMemo(() => createSupabaseBrowserClient(), []);
   const [users, setUsers] = useState<AdminUserRow[]>([]);
   const [subscriptions, setSubscriptions] = useState<
-    Record<string, SubscriptionRow | null>
+    Record<string, SubscriptionListRow | null>
   >({});
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(0);
@@ -80,10 +89,11 @@ export default function UsersPage() {
         setError(subsError.message);
       }
 
-      const mapped: Record<string, SubscriptionRow | null> = {};
-      (subs || []).forEach((subscription) => {
+      const subscriptionRows = (subs || []) as SubscriptionListRow[];
+      const mapped: Record<string, SubscriptionListRow | null> = {};
+      subscriptionRows.forEach((subscription) => {
         if (!mapped[subscription.user_id]) {
-          mapped[subscription.user_id] = subscription as SubscriptionRow;
+          mapped[subscription.user_id] = subscription;
         }
       });
 
@@ -169,6 +179,9 @@ export default function UsersPage() {
               <tbody className="divide-y divide-slate-100">
                 {users.map((user) => {
                   const subscription = subscriptions[user.id];
+                  const plan = Array.isArray(subscription?.plan)
+                    ? subscription.plan[0]
+                    : subscription?.plan;
                   const isAdmin = Boolean(user.is_admin);
                   return (
                     <tr key={user.id} className="hover:bg-slate-50/60">
@@ -202,7 +215,7 @@ export default function UsersPage() {
                         <StatusBadge value={subscription?.status || 'none'} />
                       </td>
                       <td className="px-4 py-3 text-slate-600">
-                        {subscription?.plan?.name || '-'}
+                        {plan?.name || '-'}
                       </td>
                       <td className="px-4 py-3 text-slate-600">
                         {formatDateTime(subscription?.ends_at)}

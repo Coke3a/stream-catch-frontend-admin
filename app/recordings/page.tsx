@@ -18,10 +18,19 @@ import { fetchAdminWatchUrl } from '@/lib/api/admin';
 
 const PAGE_SIZE = 20;
 
+type LiveAccountSummary = Pick<
+  LiveAccountRow,
+  'id' | 'platform' | 'account_id' | 'canonical_url'
+>;
+
+type RecordingListRow = Omit<RecordingRow, 'live_accounts'> & {
+  live_accounts?: LiveAccountSummary | LiveAccountSummary[] | null;
+};
+
 export default function RecordingsPage() {
   const supabase = useMemo(() => createSupabaseBrowserClient(), []);
   const session = useSession();
-  const [recordings, setRecordings] = useState<RecordingRow[]>([]);
+  const [recordings, setRecordings] = useState<RecordingListRow[]>([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(0);
   const [statusFilter, setStatusFilter] = useState('all');
@@ -85,7 +94,7 @@ export default function RecordingsPage() {
         return;
       }
 
-      setRecordings((data || []) as RecordingRow[]);
+      setRecordings((data || []) as RecordingListRow[]);
       setTotal(count || 0);
       setIsLoading(false);
     };
@@ -219,9 +228,9 @@ export default function RecordingsPage() {
               </thead>
               <tbody className="divide-y divide-slate-100">
                 {recordings.map((recording) => {
-                  const liveAccount = recording.live_accounts as
-                    | LiveAccountRow
-                    | undefined;
+                  const liveAccount = Array.isArray(recording.live_accounts)
+                    ? recording.live_accounts[0]
+                    : recording.live_accounts;
                   const liveAccountLabel =
                     liveAccount?.account_id?.trim() ||
                     truncateId(recording.live_account_id);

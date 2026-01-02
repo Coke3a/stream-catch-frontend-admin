@@ -15,6 +15,7 @@ import {
   AdminUserRow,
   FollowRow,
   LiveAccountRow,
+  PlanRow,
   RecordingRow,
   SubscriptionRow,
 } from '@/types/admin';
@@ -25,16 +26,41 @@ import {
   truncateId,
 } from '@/lib/utils/format';
 
+type PlanSummary = Pick<PlanRow, 'id' | 'name' | 'features'>;
+
+type SubscriptionDetailsRow = Omit<SubscriptionRow, 'plan'> & {
+  plan?: PlanSummary | PlanSummary[] | null;
+};
+
+type LiveAccountSummary = Pick<
+  LiveAccountRow,
+  'id' | 'platform' | 'account_id' | 'canonical_url' | 'status'
+>;
+
+type FollowListRow = Omit<FollowRow, 'live_accounts'> & {
+  live_accounts?: LiveAccountSummary | LiveAccountSummary[] | null;
+};
+
+type RecordingAccountSummary = Pick<LiveAccountRow, 'account_id'>;
+
+type RecordingListRow = Omit<RecordingRow, 'live_accounts'> & {
+  live_accounts?: RecordingAccountSummary | RecordingAccountSummary[] | null;
+};
+
 export default function UserDetailPage() {
   const supabase = useMemo(() => createSupabaseBrowserClient(), []);
   const params = useParams();
   const userId = `${params.id}`;
   const [user, setUser] = useState<AdminUserRow | null>(null);
-  const [subscription, setSubscription] = useState<SubscriptionRow | null>(null);
-  const [follows, setFollows] = useState<FollowRow[]>([]);
-  const [recordings, setRecordings] = useState<RecordingRow[]>([]);
+  const [subscription, setSubscription] =
+    useState<SubscriptionDetailsRow | null>(null);
+  const [follows, setFollows] = useState<FollowListRow[]>([]);
+  const [recordings, setRecordings] = useState<RecordingListRow[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const subscriptionPlan = Array.isArray(subscription?.plan)
+    ? subscription?.plan[0]
+    : subscription?.plan;
 
   useEffect(() => {
     const load = async () => {
@@ -81,7 +107,9 @@ export default function UserDetailPage() {
         .limit(1);
 
       setSubscription(
-        subscriptionData?.[0] ? (subscriptionData[0] as SubscriptionRow) : null
+        subscriptionData?.[0]
+          ? (subscriptionData[0] as SubscriptionDetailsRow)
+          : null
       );
 
       const { data: followData, error: followError } = await supabase
@@ -96,7 +124,7 @@ export default function UserDetailPage() {
         setError(followError.message);
       }
 
-      const followRows = (followData || []) as FollowRow[];
+      const followRows = (followData || []) as FollowListRow[];
       setFollows(followRows);
 
       const liveAccountIds = followRows.map((follow) => follow.live_account_id);
@@ -114,7 +142,7 @@ export default function UserDetailPage() {
           setError(recordingError.message);
         }
 
-        setRecordings((recordingData || []) as RecordingRow[]);
+        setRecordings((recordingData || []) as RecordingListRow[]);
       } else {
         setRecordings([]);
       }
@@ -226,7 +254,7 @@ export default function UserDetailPage() {
                       Plan
                     </p>
                     <p className="mt-2 text-sm text-slate-700">
-                      {subscription.plan?.name || '-'}
+                      {subscriptionPlan?.name || '-'}
                     </p>
                   </div>
                   <div>
@@ -282,9 +310,9 @@ export default function UserDetailPage() {
                     </thead>
                     <tbody className="divide-y divide-slate-100">
                       {follows.map((follow) => {
-                        const liveAccount = follow.live_accounts as
-                          | LiveAccountRow
-                          | undefined;
+                        const liveAccount = Array.isArray(follow.live_accounts)
+                          ? follow.live_accounts[0]
+                          : follow.live_accounts;
                         const liveAccountLabel =
                           liveAccount?.account_id?.trim() ||
                           truncateId(follow.live_account_id);
@@ -337,31 +365,38 @@ export default function UserDetailPage() {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100">
-                      {recordings.map((recording) => (
-                        <tr key={recording.id}>
-                          <td className="px-4 py-3 font-semibold text-slate-900">
-                            {truncateId(recording.id)}
-                          </td>
-                          <td className="px-4 py-3">
-                            <Link
-                              href={`/live-accounts/${recording.live_account_id}`}
-                              className="text-slate-700"
-                            >
-                              {recording.live_accounts?.account_id?.trim() ||
-                                truncateId(recording.live_account_id)}
-                            </Link>
-                          </td>
-                          <td className="px-4 py-3">
-                            <StatusBadge value={recording.status} />
-                          </td>
-                          <td className="px-4 py-3 text-slate-600">
-                            {formatDateTime(recording.started_at)}
-                          </td>
-                          <td className="px-4 py-3 text-slate-600">
-                            {formatDuration(recording.duration_sec)}
-                          </td>
-                        </tr>
-                      ))}
+                      {recordings.map((recording) => {
+                        const liveAccount = Array.isArray(
+                          recording.live_accounts
+                        )
+                          ? recording.live_accounts[0]
+                          : recording.live_accounts;
+                        return (
+                          <tr key={recording.id}>
+                            <td className="px-4 py-3 font-semibold text-slate-900">
+                              {truncateId(recording.id)}
+                            </td>
+                            <td className="px-4 py-3">
+                              <Link
+                                href={`/live-accounts/${recording.live_account_id}`}
+                                className="text-slate-700"
+                              >
+                                {liveAccount?.account_id?.trim() ||
+                                  truncateId(recording.live_account_id)}
+                              </Link>
+                            </td>
+                            <td className="px-4 py-3">
+                              <StatusBadge value={recording.status} />
+                            </td>
+                            <td className="px-4 py-3 text-slate-600">
+                              {formatDateTime(recording.started_at)}
+                            </td>
+                            <td className="px-4 py-3 text-slate-600">
+                              {formatDuration(recording.duration_sec)}
+                            </td>
+                          </tr>
+                        );
+                      })}
                     </tbody>
                   </table>
                 </div>

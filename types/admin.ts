@@ -5,6 +5,7 @@ export type AdminUserRow = {
   role: string | null;
   last_sign_in_at?: string | null;
   email_confirmed_at?: string | null;
+  last_seen_at?: string | null;
   is_admin?: boolean | null;
   total_count?: number | null;
 };

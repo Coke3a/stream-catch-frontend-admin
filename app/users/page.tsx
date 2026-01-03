@@ -172,6 +172,7 @@ export default function UsersPage() {
                     <th className="px-4 py-3">Admin</th>
                     <th className="px-4 py-3">Created</th>
                     <th className="px-4 py-3">Last sign-in</th>
+                    <th className="px-4 py-3">Last seen</th>
                     <th className="px-4 py-3">Subscription</th>
                     <th className="px-4 py-3">Plan</th>
                     <th className="px-4 py-3">Ends</th>
@@ -211,6 +212,9 @@ export default function UsersPage() {
                         </td>
                         <td className="px-4 py-3 text-slate-600">
                           {formatDateTime(user.last_sign_in_at)}
+                        </td>
+                        <td className="px-4 py-3 text-slate-600">
+                          {formatDateTime(user.last_seen_at)}
                         </td>
                         <td className="px-4 py-3">
                           <StatusBadge value={subscription?.status || 'none'} />

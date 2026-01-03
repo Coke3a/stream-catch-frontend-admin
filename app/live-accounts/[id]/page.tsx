@@ -159,7 +159,7 @@ export default function LiveAccountDetailPage() {
                 </div>
                 <CopyButton value={displayAccountId} />
               </div>
-              <div className="mt-6 grid gap-4 md:grid-cols-3">
+              <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
                 <div>
                   <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
                     Platform
@@ -195,7 +195,7 @@ export default function LiveAccountDetailPage() {
                     </div>
                   </div>
                 ) : null}
-                <div className="md:col-span-3">
+                <div className="sm:col-span-2 lg:col-span-3">
                   <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
                     Canonical URL
                   </p>
@@ -251,66 +251,68 @@ export default function LiveAccountDetailPage() {
                 </p>
               ) : (
                 <div className="mt-4 overflow-hidden rounded-2xl border border-slate-200">
-                  <table className="w-full text-left text-sm">
-                    <thead className="bg-slate-50/80 text-xs font-semibold uppercase tracking-wide text-slate-500">
-                      <tr>
-                        <th className="px-4 py-3">Recording</th>
-                        <th className="px-4 py-3">Status</th>
-                        <th className="px-4 py-3">Started</th>
-                        <th className="px-4 py-3">Duration</th>
-                        <th className="px-4 py-3">Actions</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-100">
-                      {recordings.map((recording) => {
-                        const isReady =
-                          recording.status === 'ready' &&
-                          Boolean(recording.storage_path);
-                        return (
-                          <tr key={recording.id}>
-                            <td className="px-4 py-3">
-                              <div className="flex flex-col gap-2">
-                                <span className="font-semibold text-slate-900">
-                                  {truncateId(recording.id)}
-                                </span>
-                                <CopyButton value={recording.id} />
-                              </div>
-                            </td>
-                            <td className="px-4 py-3">
-                              <StatusBadge value={recording.status} />
-                            </td>
-                            <td className="px-4 py-3 text-slate-600">
-                              {formatDateTime(recording.started_at)}
-                            </td>
-                            <td className="px-4 py-3 text-slate-600">
-                              {formatDuration(recording.duration_sec)}
-                            </td>
-                            <td className="px-4 py-3">
-                              <button
-                                type="button"
-                                disabled={!isReady || watchingId === recording.id}
-                                onClick={() => handleWatch(recording.id)}
-                                className={`rounded-full border px-3 py-1 text-xs font-semibold uppercase tracking-wide transition ${
-                                  isReady
-                                    ? 'border-slate-900 bg-slate-900 text-white hover:bg-slate-800'
-                                    : 'border-slate-200 text-slate-400'
-                                }`}
-                              >
-                                {watchingId === recording.id
-                                  ? 'Loading...'
-                                  : 'Watch'}
-                              </button>
-                              {!isReady && (
-                                <p className="mt-2 text-xs text-slate-400">
-                                  Not ready
-                                </p>
-                              )}
-                            </td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
+                  <div className="overflow-x-auto">
+                    <table className="w-full min-w-[840px] text-left text-sm">
+                      <thead className="bg-slate-50/80 text-xs font-semibold uppercase tracking-wide text-slate-500">
+                        <tr>
+                          <th className="px-4 py-3">Recording</th>
+                          <th className="px-4 py-3">Status</th>
+                          <th className="px-4 py-3">Started</th>
+                          <th className="px-4 py-3">Duration</th>
+                          <th className="px-4 py-3">Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100">
+                        {recordings.map((recording) => {
+                          const isReady =
+                            recording.status === 'ready' &&
+                            Boolean(recording.storage_path);
+                          return (
+                            <tr key={recording.id}>
+                              <td className="px-4 py-3">
+                                <div className="flex flex-col gap-2">
+                                  <span className="font-semibold text-slate-900">
+                                    {truncateId(recording.id)}
+                                  </span>
+                                  <CopyButton value={recording.id} />
+                                </div>
+                              </td>
+                              <td className="px-4 py-3">
+                                <StatusBadge value={recording.status} />
+                              </td>
+                              <td className="px-4 py-3 text-slate-600">
+                                {formatDateTime(recording.started_at)}
+                              </td>
+                              <td className="px-4 py-3 text-slate-600">
+                                {formatDuration(recording.duration_sec)}
+                              </td>
+                              <td className="px-4 py-3">
+                                <button
+                                  type="button"
+                                  disabled={!isReady || watchingId === recording.id}
+                                  onClick={() => handleWatch(recording.id)}
+                                  className={`rounded-full border px-3 py-1 text-xs font-semibold uppercase tracking-wide transition ${
+                                    isReady
+                                      ? 'border-slate-900 bg-slate-900 text-white hover:bg-slate-800'
+                                      : 'border-slate-200 text-slate-400'
+                                  }`}
+                                >
+                                  {watchingId === recording.id
+                                    ? 'Loading...'
+                                    : 'Watch'}
+                                </button>
+                                {!isReady && (
+                                  <p className="mt-2 text-xs text-slate-400">
+                                    Not ready
+                                  </p>
+                                )}
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
                 </div>
               )}
 

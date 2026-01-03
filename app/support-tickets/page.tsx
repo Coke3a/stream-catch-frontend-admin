@@ -188,7 +188,7 @@ export default function SupportTicketsPage() {
       >
         <form
           onSubmit={handleFilter}
-          className="mb-6 grid gap-3 rounded-2xl border border-slate-200/70 bg-white/80 p-4 shadow-sm md:grid-cols-4"
+          className="mb-6 grid gap-3 rounded-2xl border border-slate-200/70 bg-white/80 p-4 shadow-sm sm:grid-cols-2 lg:grid-cols-4"
         >
           <label className="text-xs font-semibold uppercase tracking-wide text-slate-500">
             Status
@@ -266,61 +266,63 @@ export default function SupportTicketsPage() {
           />
         ) : (
           <div className="overflow-hidden rounded-2xl border border-slate-200/70 bg-white/80 shadow-sm">
-            <table className="w-full text-left text-sm">
-              <thead className="bg-slate-50/80 text-xs font-semibold uppercase tracking-wide text-slate-500">
-                <tr>
-                  <th className="px-4 py-3">Subject</th>
-                  <th className="px-4 py-3">Category</th>
-                  <th className="px-4 py-3">Severity</th>
-                  <th className="px-4 py-3">Status</th>
-                  <th className="px-4 py-3">User</th>
-                  <th className="px-4 py-3">Created</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
-                {tickets.map((ticket) => (
-                  <tr
-                    key={ticket.id}
-                    className={clsx(
-                      'cursor-pointer hover:bg-slate-50/60',
-                      selectedTicketId === ticket.id && 'bg-slate-50'
-                    )}
-                    onClick={() => setSelectedTicketId(ticket.id)}
-                  >
-                    <td className="px-4 py-3">
-                      <div className="flex flex-col gap-1">
-                        <span className="font-semibold text-slate-900">
-                          {ticket.subject}
-                        </span>
-                        <span className="text-xs text-slate-500">
-                          {truncateId(ticket.id)}
-                        </span>
-                      </div>
-                    </td>
-                    <td className="px-4 py-3 text-slate-600 capitalize">
-                      {ticket.category}
-                    </td>
-                    <td className="px-4 py-3 text-slate-600 capitalize">
-                      {ticket.severity || '-'}
-                    </td>
-                    <td className="px-4 py-3">
-                      <StatusBadge value={ticket.status} />
-                    </td>
-                    <td className="px-4 py-3 text-slate-600">
-                      <div className="flex flex-col gap-1">
-                        <span>{ticket.email || '-'}</span>
-                        <span className="text-xs text-slate-500">
-                          {truncateId(ticket.user_id)}
-                        </span>
-                      </div>
-                    </td>
-                    <td className="px-4 py-3 text-slate-600">
-                      {formatDateTime(ticket.created_at)}
-                    </td>
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[840px] text-left text-sm">
+                <thead className="bg-slate-50/80 text-xs font-semibold uppercase tracking-wide text-slate-500">
+                  <tr>
+                    <th className="px-4 py-3">Subject</th>
+                    <th className="px-4 py-3">Category</th>
+                    <th className="px-4 py-3">Severity</th>
+                    <th className="px-4 py-3">Status</th>
+                    <th className="px-4 py-3">User</th>
+                    <th className="px-4 py-3">Created</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {tickets.map((ticket) => (
+                    <tr
+                      key={ticket.id}
+                      className={clsx(
+                        'cursor-pointer hover:bg-slate-50/60',
+                        selectedTicketId === ticket.id && 'bg-slate-50'
+                      )}
+                      onClick={() => setSelectedTicketId(ticket.id)}
+                    >
+                      <td className="px-4 py-3">
+                        <div className="flex flex-col gap-1">
+                          <span className="font-semibold text-slate-900">
+                            {ticket.subject}
+                          </span>
+                          <span className="text-xs text-slate-500">
+                            {truncateId(ticket.id)}
+                          </span>
+                        </div>
+                      </td>
+                      <td className="px-4 py-3 text-slate-600 capitalize">
+                        {ticket.category}
+                      </td>
+                      <td className="px-4 py-3 text-slate-600 capitalize">
+                        {ticket.severity || '-'}
+                      </td>
+                      <td className="px-4 py-3">
+                        <StatusBadge value={ticket.status} />
+                      </td>
+                      <td className="px-4 py-3 text-slate-600">
+                        <div className="flex flex-col gap-1">
+                          <span>{ticket.email || '-'}</span>
+                          <span className="text-xs text-slate-500">
+                            {truncateId(ticket.user_id)}
+                          </span>
+                        </div>
+                      </td>
+                      <td className="px-4 py-3 text-slate-600">
+                        {formatDateTime(ticket.created_at)}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </div>
         )}
 
@@ -347,7 +349,7 @@ export default function SupportTicketsPage() {
               <CopyButton value={selectedTicket.id} />
             </div>
 
-            <div className="mt-6 grid gap-4 md:grid-cols-3">
+            <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
               <div>
                 <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
                   Category
@@ -387,7 +389,7 @@ export default function SupportTicketsPage() {
               </div>
             </div>
 
-            <div className="mt-6 grid gap-4 md:grid-cols-2">
+            <div className="mt-6 grid gap-4 sm:grid-cols-2">
               <div>
                 <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
                   User

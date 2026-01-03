@@ -138,7 +138,7 @@ export default function DashboardPage() {
           </div>
         )}
 
-        <div className="mt-10 grid gap-4 md:grid-cols-3">
+        <div className="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           <Link
             href={ROUTES.users}
             className="rounded-2xl border border-slate-200/70 bg-white/70 p-5 text-sm font-semibold text-slate-700 shadow-sm transition hover:border-slate-400"

@@ -106,58 +106,60 @@ export default function LiveAccountsPage() {
           />
         ) : (
           <div className="overflow-hidden rounded-2xl border border-slate-200/70 bg-white/80 shadow-sm">
-            <table className="w-full text-left text-sm">
-              <thead className="bg-slate-50/80 text-xs font-semibold uppercase tracking-wide text-slate-500">
-                <tr>
-                  <th className="px-4 py-3">Account</th>
-                  <th className="px-4 py-3">Platform</th>
-                  <th className="px-4 py-3">Status</th>
-                  <th className="px-4 py-3">Followers</th>
-                  <th className="px-4 py-3">Created</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
-                {liveAccounts.map((account) => (
-                  <tr key={account.id} className="hover:bg-slate-50/60">
-                    <td className="px-4 py-3">
-                      <div className="flex flex-col gap-2">
-                        <Link
-                          href={`/live-accounts/${account.id}`}
-                          className="font-semibold text-slate-900"
-                        >
-                          {account.account_id?.trim() || truncateId(account.id)}
-                        </Link>
-                        <div className="flex flex-wrap items-center gap-2 text-xs text-slate-500">
-                          <CopyButton
-                            value={account.account_id?.trim() || account.id}
-                          />
-                          <a
-                            href={account.canonical_url}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="underline decoration-dotted"
-                          >
-                            Open
-                          </a>
-                        </div>
-                      </div>
-                    </td>
-                    <td className="px-4 py-3 text-slate-600">
-                      {account.platform}
-                    </td>
-                    <td className="px-4 py-3">
-                      <StatusBadge value={account.status} />
-                    </td>
-                    <td className="px-4 py-3 text-slate-600">
-                      {followerCounts[account.id] || 0}
-                    </td>
-                    <td className="px-4 py-3 text-slate-600">
-                      {formatDateTime(account.created_at)}
-                    </td>
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[720px] text-left text-sm">
+                <thead className="bg-slate-50/80 text-xs font-semibold uppercase tracking-wide text-slate-500">
+                  <tr>
+                    <th className="px-4 py-3">Account</th>
+                    <th className="px-4 py-3">Platform</th>
+                    <th className="px-4 py-3">Status</th>
+                    <th className="px-4 py-3">Followers</th>
+                    <th className="px-4 py-3">Created</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {liveAccounts.map((account) => (
+                    <tr key={account.id} className="hover:bg-slate-50/60">
+                      <td className="px-4 py-3">
+                        <div className="flex flex-col gap-2">
+                          <Link
+                            href={`/live-accounts/${account.id}`}
+                            className="font-semibold text-slate-900"
+                          >
+                            {account.account_id?.trim() || truncateId(account.id)}
+                          </Link>
+                          <div className="flex flex-wrap items-center gap-2 text-xs text-slate-500">
+                            <CopyButton
+                              value={account.account_id?.trim() || account.id}
+                            />
+                            <a
+                              href={account.canonical_url}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="underline decoration-dotted"
+                            >
+                              Open
+                            </a>
+                          </div>
+                        </div>
+                      </td>
+                      <td className="px-4 py-3 text-slate-600">
+                        {account.platform}
+                      </td>
+                      <td className="px-4 py-3">
+                        <StatusBadge value={account.status} />
+                      </td>
+                      <td className="px-4 py-3 text-slate-600">
+                        {followerCounts[account.id] || 0}
+                      </td>
+                      <td className="px-4 py-3 text-slate-600">
+                        {formatDateTime(account.created_at)}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </div>
         )}
 

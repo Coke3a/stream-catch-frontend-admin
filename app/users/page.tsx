@@ -118,7 +118,7 @@ export default function UsersPage() {
       >
         <form
           onSubmit={handleSearch}
-          className="mb-6 flex flex-wrap items-center gap-3"
+          className="mb-6 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center"
         >
           <input
             value={search}
@@ -128,7 +128,7 @@ export default function UsersPage() {
           />
           <button
             type="submit"
-            className="rounded-full border border-slate-300 px-4 py-2 text-xs font-semibold uppercase tracking-wide text-slate-700 hover:border-slate-500"
+            className="w-full rounded-full border border-slate-300 px-4 py-2 text-xs font-semibold uppercase tracking-wide text-slate-700 hover:border-slate-500 sm:w-auto"
           >
             Search
           </button>
@@ -140,7 +140,7 @@ export default function UsersPage() {
                 setQuery('');
                 setPage(0);
               }}
-              className="rounded-full border border-slate-200 px-4 py-2 text-xs font-semibold uppercase tracking-wide text-slate-500 hover:border-slate-400"
+              className="w-full rounded-full border border-slate-200 px-4 py-2 text-xs font-semibold uppercase tracking-wide text-slate-500 hover:border-slate-400 sm:w-auto"
             >
               Clear
             </button>
@@ -162,69 +162,71 @@ export default function UsersPage() {
           />
         ) : (
           <div className="overflow-hidden rounded-2xl border border-slate-200/70 bg-white/80 shadow-sm">
-            <table className="w-full text-left text-sm">
-              <thead className="bg-slate-50/80 text-xs font-semibold uppercase tracking-wide text-slate-500">
-                <tr>
-                  <th className="px-4 py-3">User</th>
-                  <th className="px-4 py-3">Email</th>
-                  <th className="px-4 py-3">Role</th>
-                  <th className="px-4 py-3">Admin</th>
-                  <th className="px-4 py-3">Created</th>
-                  <th className="px-4 py-3">Last sign-in</th>
-                  <th className="px-4 py-3">Subscription</th>
-                  <th className="px-4 py-3">Plan</th>
-                  <th className="px-4 py-3">Ends</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
-                {users.map((user) => {
-                  const subscription = subscriptions[user.id];
-                  const plan = Array.isArray(subscription?.plan)
-                    ? subscription.plan[0]
-                    : subscription?.plan;
-                  const isAdmin = Boolean(user.is_admin);
-                  return (
-                    <tr key={user.id} className="hover:bg-slate-50/60">
-                      <td className="px-4 py-3">
-                        <div className="flex flex-col gap-2">
-                          <Link
-                            href={`/users/${user.id}`}
-                            className="font-semibold text-slate-900"
-                          >
-                            {truncateId(user.id)}
-                          </Link>
-                          <CopyButton value={user.id} />
-                        </div>
-                      </td>
-                      <td className="px-4 py-3 text-slate-600">
-                        {user.email || '-'}
-                      </td>
-                      <td className="px-4 py-3 text-slate-600">
-                        {user.role || '-'}
-                      </td>
-                      <td className="px-4 py-3">
-                        <StatusBadge value={isAdmin ? 'admin' : 'standard'} />
-                      </td>
-                      <td className="px-4 py-3 text-slate-600">
-                        {formatDateTime(user.created_at)}
-                      </td>
-                      <td className="px-4 py-3 text-slate-600">
-                        {formatDateTime(user.last_sign_in_at)}
-                      </td>
-                      <td className="px-4 py-3">
-                        <StatusBadge value={subscription?.status || 'none'} />
-                      </td>
-                      <td className="px-4 py-3 text-slate-600">
-                        {plan?.name || '-'}
-                      </td>
-                      <td className="px-4 py-3 text-slate-600">
-                        {formatDateTime(subscription?.ends_at)}
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[960px] text-left text-sm">
+                <thead className="bg-slate-50/80 text-xs font-semibold uppercase tracking-wide text-slate-500">
+                  <tr>
+                    <th className="px-4 py-3">User</th>
+                    <th className="px-4 py-3">Email</th>
+                    <th className="px-4 py-3">Role</th>
+                    <th className="px-4 py-3">Admin</th>
+                    <th className="px-4 py-3">Created</th>
+                    <th className="px-4 py-3">Last sign-in</th>
+                    <th className="px-4 py-3">Subscription</th>
+                    <th className="px-4 py-3">Plan</th>
+                    <th className="px-4 py-3">Ends</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {users.map((user) => {
+                    const subscription = subscriptions[user.id];
+                    const plan = Array.isArray(subscription?.plan)
+                      ? subscription.plan[0]
+                      : subscription?.plan;
+                    const isAdmin = Boolean(user.is_admin);
+                    return (
+                      <tr key={user.id} className="hover:bg-slate-50/60">
+                        <td className="px-4 py-3">
+                          <div className="flex flex-col gap-2">
+                            <Link
+                              href={`/users/${user.id}`}
+                              className="font-semibold text-slate-900"
+                            >
+                              {truncateId(user.id)}
+                            </Link>
+                            <CopyButton value={user.id} />
+                          </div>
+                        </td>
+                        <td className="px-4 py-3 text-slate-600">
+                          {user.email || '-'}
+                        </td>
+                        <td className="px-4 py-3 text-slate-600">
+                          {user.role || '-'}
+                        </td>
+                        <td className="px-4 py-3">
+                          <StatusBadge value={isAdmin ? 'admin' : 'standard'} />
+                        </td>
+                        <td className="px-4 py-3 text-slate-600">
+                          {formatDateTime(user.created_at)}
+                        </td>
+                        <td className="px-4 py-3 text-slate-600">
+                          {formatDateTime(user.last_sign_in_at)}
+                        </td>
+                        <td className="px-4 py-3">
+                          <StatusBadge value={subscription?.status || 'none'} />
+                        </td>
+                        <td className="px-4 py-3 text-slate-600">
+                          {plan?.name || '-'}
+                        </td>
+                        <td className="px-4 py-3 text-slate-600">
+                          {formatDateTime(subscription?.ends_at)}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
           </div>
         )}
 

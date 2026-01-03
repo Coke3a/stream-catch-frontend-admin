@@ -183,7 +183,7 @@ export default function UserDetailPage() {
                 </div>
                 <CopyButton value={user.id} />
               </div>
-              <div className="mt-6 grid gap-4 md:grid-cols-3">
+              <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
                 <div>
                   <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
                     Email
@@ -240,7 +240,7 @@ export default function UserDetailPage() {
                 Subscription
               </h2>
               {subscription ? (
-                <div className="mt-4 grid gap-4 md:grid-cols-3">
+                <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
                   <div>
                     <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
                       Status
@@ -299,47 +299,49 @@ export default function UserDetailPage() {
                 </p>
               ) : (
                 <div className="mt-4 overflow-hidden rounded-2xl border border-slate-200">
-                  <table className="w-full text-left text-sm">
-                    <thead className="bg-slate-50/80 text-xs font-semibold uppercase tracking-wide text-slate-500">
-                      <tr>
-                        <th className="px-4 py-3">Live account</th>
-                        <th className="px-4 py-3">Platform</th>
-                        <th className="px-4 py-3">Status</th>
-                        <th className="px-4 py-3">Followed</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-100">
-                      {follows.map((follow) => {
-                        const liveAccount = Array.isArray(follow.live_accounts)
-                          ? follow.live_accounts[0]
-                          : follow.live_accounts;
-                        const liveAccountLabel =
-                          liveAccount?.account_id?.trim() ||
-                          truncateId(follow.live_account_id);
-                        return (
-                          <tr key={`${follow.user_id}-${follow.live_account_id}`}>
-                            <td className="px-4 py-3">
-                              <Link
-                                href={`/live-accounts/${follow.live_account_id}`}
-                                className="font-semibold text-slate-900"
-                              >
-                                {liveAccountLabel}
-                              </Link>
-                            </td>
-                            <td className="px-4 py-3 text-slate-600">
-                              {liveAccount?.platform || '-'}
-                            </td>
-                            <td className="px-4 py-3">
-                              <StatusBadge value={follow.status} />
-                            </td>
-                            <td className="px-4 py-3 text-slate-600">
-                              {formatDateTime(follow.created_at)}
-                            </td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
+                  <div className="overflow-x-auto">
+                    <table className="w-full min-w-[640px] text-left text-sm">
+                      <thead className="bg-slate-50/80 text-xs font-semibold uppercase tracking-wide text-slate-500">
+                        <tr>
+                          <th className="px-4 py-3">Live account</th>
+                          <th className="px-4 py-3">Platform</th>
+                          <th className="px-4 py-3">Status</th>
+                          <th className="px-4 py-3">Followed</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100">
+                        {follows.map((follow) => {
+                          const liveAccount = Array.isArray(follow.live_accounts)
+                            ? follow.live_accounts[0]
+                            : follow.live_accounts;
+                          const liveAccountLabel =
+                            liveAccount?.account_id?.trim() ||
+                            truncateId(follow.live_account_id);
+                          return (
+                            <tr key={`${follow.user_id}-${follow.live_account_id}`}>
+                              <td className="px-4 py-3">
+                                <Link
+                                  href={`/live-accounts/${follow.live_account_id}`}
+                                  className="font-semibold text-slate-900"
+                                >
+                                  {liveAccountLabel}
+                                </Link>
+                              </td>
+                              <td className="px-4 py-3 text-slate-600">
+                                {liveAccount?.platform || '-'}
+                              </td>
+                              <td className="px-4 py-3">
+                                <StatusBadge value={follow.status} />
+                              </td>
+                              <td className="px-4 py-3 text-slate-600">
+                                {formatDateTime(follow.created_at)}
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
                 </div>
               )}
             </section>
@@ -354,51 +356,53 @@ export default function UserDetailPage() {
                 </p>
               ) : (
                 <div className="mt-4 overflow-hidden rounded-2xl border border-slate-200">
-                  <table className="w-full text-left text-sm">
-                    <thead className="bg-slate-50/80 text-xs font-semibold uppercase tracking-wide text-slate-500">
-                      <tr>
-                        <th className="px-4 py-3">Recording</th>
-                        <th className="px-4 py-3">Live account</th>
-                        <th className="px-4 py-3">Status</th>
-                        <th className="px-4 py-3">Started</th>
-                        <th className="px-4 py-3">Duration</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-100">
-                      {recordings.map((recording) => {
-                        const liveAccount = Array.isArray(
-                          recording.live_accounts
-                        )
-                          ? recording.live_accounts[0]
-                          : recording.live_accounts;
-                        return (
-                          <tr key={recording.id}>
-                            <td className="px-4 py-3 font-semibold text-slate-900">
-                              {truncateId(recording.id)}
-                            </td>
-                            <td className="px-4 py-3">
-                              <Link
-                                href={`/live-accounts/${recording.live_account_id}`}
-                                className="text-slate-700"
-                              >
-                                {liveAccount?.account_id?.trim() ||
-                                  truncateId(recording.live_account_id)}
-                              </Link>
-                            </td>
-                            <td className="px-4 py-3">
-                              <StatusBadge value={recording.status} />
-                            </td>
-                            <td className="px-4 py-3 text-slate-600">
-                              {formatDateTime(recording.started_at)}
-                            </td>
-                            <td className="px-4 py-3 text-slate-600">
-                              {formatDuration(recording.duration_sec)}
-                            </td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
+                  <div className="overflow-x-auto">
+                    <table className="w-full min-w-[720px] text-left text-sm">
+                      <thead className="bg-slate-50/80 text-xs font-semibold uppercase tracking-wide text-slate-500">
+                        <tr>
+                          <th className="px-4 py-3">Recording</th>
+                          <th className="px-4 py-3">Live account</th>
+                          <th className="px-4 py-3">Status</th>
+                          <th className="px-4 py-3">Started</th>
+                          <th className="px-4 py-3">Duration</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100">
+                        {recordings.map((recording) => {
+                          const liveAccount = Array.isArray(
+                            recording.live_accounts
+                          )
+                            ? recording.live_accounts[0]
+                            : recording.live_accounts;
+                          return (
+                            <tr key={recording.id}>
+                              <td className="px-4 py-3 font-semibold text-slate-900">
+                                {truncateId(recording.id)}
+                              </td>
+                              <td className="px-4 py-3">
+                                <Link
+                                  href={`/live-accounts/${recording.live_account_id}`}
+                                  className="text-slate-700"
+                                >
+                                  {liveAccount?.account_id?.trim() ||
+                                    truncateId(recording.live_account_id)}
+                                </Link>
+                              </td>
+                              <td className="px-4 py-3">
+                                <StatusBadge value={recording.status} />
+                              </td>
+                              <td className="px-4 py-3 text-slate-600">
+                                {formatDateTime(recording.started_at)}
+                              </td>
+                              <td className="px-4 py-3 text-slate-600">
+                                {formatDuration(recording.duration_sec)}
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
                 </div>
               )}
             </section>

@@ -1,8 +1,13 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { Suspense, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
-import { usePathname, useRouter, useSearchParams } from 'next/navigation';
+import {
+  ReadonlyURLSearchParams,
+  usePathname,
+  useRouter,
+  useSearchParams,
+} from 'next/navigation';
 import AppShell from '@/components/AppShell';
 import RequireAdmin from '@/components/RequireAdmin';
 import ErrorBanner from '@/components/ErrorBanner';
@@ -98,10 +103,13 @@ const buildRecordingsQuery = (
 });
 
 
-export default function RecordingsPage() {
+function RecordingsPageContent({
+  searchParams,
+}: {
+  searchParams: ReadonlyURLSearchParams;
+}) {
   const supabase = useMemo(() => createSupabaseBrowserClient(), []);
   const session = useSession();
-  const searchParams = useSearchParams();
   const router = useRouter();
   const pathname = usePathname();
   const initialPage = parsePage(searchParams.get('page'));
@@ -501,5 +509,23 @@ export default function RecordingsPage() {
         )}
       </AppShell>
     </RequireAdmin>
+  );
+}
+
+function RecordingsPageContainer() {
+  const searchParams = useSearchParams();
+  return (
+    <RecordingsPageContent
+      key={searchParams.toString()}
+      searchParams={searchParams}
+    />
+  );
+}
+
+export default function RecordingsPage() {
+  return (
+    <Suspense fallback={<LoadingSkeleton rows={6} />}>
+      <RecordingsPageContainer />
+    </Suspense>
   );
 }

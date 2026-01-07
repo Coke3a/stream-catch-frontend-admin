@@ -12,8 +12,13 @@ import StatusBadge from '@/components/StatusBadge';
 import CopyButton from '@/components/CopyButton';
 import Pagination from '@/components/Pagination';
 import { createSupabaseBrowserClient } from '@/lib/supabase/client';
-import { LiveAccountRow, RecordingRow } from '@/types/admin';
-import { formatDateTime, formatDuration, isUuid, truncateId } from '@/lib/utils/format';
+import { FollowRow, LiveAccountRow, RecordingRow } from '@/types/admin';
+import {
+  formatDateTime,
+  formatDuration,
+  isUuid,
+  truncateId,
+} from '@/lib/utils/format';
 import { fetchAdminWatchUrl } from '@/lib/api/admin';
 import { useSession } from '@/components/AuthProvider';
 
@@ -28,6 +33,7 @@ export default function LiveAccountDetailPage() {
   const [recordings, setRecordings] = useState<RecordingRow[]>([]);
   const [recordingsTotal, setRecordingsTotal] = useState(0);
   const [followerCount, setFollowerCount] = useState(0);
+  const [followers, setFollowers] = useState<FollowRow[]>([]);
   const [statusFilter, setStatusFilter] = useState('all');
   const [page, setPage] = useState(0);
   const [error, setError] = useState<string | null>(null);
@@ -69,6 +75,20 @@ export default function LiveAccountDetailPage() {
         .eq('status', 'active');
 
       setFollowerCount(followerCount || 0);
+
+      const { data: followerData, error: followerError } = await supabase
+        .from('follows')
+        .select('user_id,live_account_id,status,created_at')
+        .eq('live_account_id', liveAccountId)
+        .eq('status', 'active')
+        .order('created_at', { ascending: false });
+
+      if (followerError) {
+        setError(followerError.message);
+        setFollowers([]);
+      } else {
+        setFollowers((followerData || []) as FollowRow[]);
+      }
 
       const from = page * PAGE_SIZE;
       const to = from + PAGE_SIZE - 1;
@@ -212,6 +232,56 @@ export default function LiveAccountDetailPage() {
                   </div>
                 </div>
               </div>
+            </section>
+
+            <section className="rounded-2xl border border-slate-200/70 bg-white/80 p-6 shadow-sm">
+              <div className="flex flex-wrap items-center justify-between gap-4">
+                <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-500">
+                  Active followers
+                </h2>
+                <span className="text-xs text-slate-500">
+                  {followers.length} total
+                </span>
+              </div>
+
+              {followers.length === 0 ? (
+                <p className="mt-4 text-sm text-slate-600">
+                  No active followers for this account.
+                </p>
+              ) : (
+                <div className="mt-4 overflow-hidden rounded-2xl border border-slate-200">
+                  <div className="overflow-x-auto">
+                    <table className="w-full min-w-[640px] text-left text-sm">
+                      <thead className="bg-slate-50/80 text-xs font-semibold uppercase tracking-wide text-slate-500">
+                        <tr>
+                          <th className="px-4 py-3">User</th>
+                          <th className="px-4 py-3">Followed</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100">
+                        {followers.map((follow) => (
+                          <tr key={follow.user_id}>
+                            <td className="px-4 py-3">
+                              <div className="flex flex-col gap-2">
+                                <Link
+                                  href={`/users/${follow.user_id}`}
+                                  className="font-semibold text-slate-900"
+                                >
+                                  {truncateId(follow.user_id)}
+                                </Link>
+                                <CopyButton value={follow.user_id} />
+                              </div>
+                            </td>
+                            <td className="px-4 py-3 text-slate-600">
+                              {formatDateTime(follow.created_at)}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
             </section>
 
             <section className="rounded-2xl border border-slate-200/70 bg-white/80 p-6 shadow-sm">

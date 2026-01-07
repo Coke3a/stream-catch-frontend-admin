@@ -1,8 +1,13 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { Suspense, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
-import { usePathname, useRouter, useSearchParams } from 'next/navigation';
+import {
+  ReadonlyURLSearchParams,
+  usePathname,
+  useRouter,
+  useSearchParams,
+} from 'next/navigation';
 import AppShell from '@/components/AppShell';
 import RequireAdmin from '@/components/RequireAdmin';
 import ErrorBanner from '@/components/ErrorBanner';
@@ -17,7 +22,7 @@ import { formatDateTime, isUuid, truncateId } from '@/lib/utils/format';
 
 const DEFAULT_PAGE_SIZE = 20;
 const PAGE_SIZE_OPTIONS = [10, 20, 50, 100];
-const ORDER_FIELDS = ['created_at', 'updated_at'] as const;
+const ORDER_FIELDS = ['created_at', 'updated_at', 'last_seen_at'] as const;
 const USER_STATUS_OPTIONS = [
   { value: 'all', label: 'All' },
   { value: 'active', label: 'Active' },
@@ -90,9 +95,12 @@ const buildUserQuery = (
 };
 
 
-export default function UsersPage() {
+function UsersPageContent({
+  searchParams,
+}: {
+  searchParams: ReadonlyURLSearchParams;
+}) {
   const supabase = useMemo(() => createSupabaseBrowserClient(), []);
-  const searchParams = useSearchParams();
   const router = useRouter();
   const pathname = usePathname();
   const initialPage = parsePage(searchParams.get('page'));
@@ -301,6 +309,7 @@ export default function UsersPage() {
             >
               <option value="created_at">Created</option>
               <option value="updated_at">Updated</option>
+              <option value="last_seen_at">Last seen</option>
             </select>
           </label>
 
@@ -436,5 +445,23 @@ export default function UsersPage() {
         )}
       </AppShell>
     </RequireAdmin>
+  );
+}
+
+function UsersPageContainer() {
+  const searchParams = useSearchParams();
+  return (
+    <UsersPageContent
+      key={searchParams.toString()}
+      searchParams={searchParams}
+    />
+  );
+}
+
+export default function UsersPage() {
+  return (
+    <Suspense fallback={<LoadingSkeleton rows={6} />}>
+      <UsersPageContainer />
+    </Suspense>
   );
 }

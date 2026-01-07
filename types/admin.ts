@@ -37,6 +37,8 @@ export type LiveAccountRow = {
   status: string;
   created_at: string;
   updated_at: string;
+  follower_count?: number | null;
+  total_count?: number | null;
 };
 
 export type FollowRow = {

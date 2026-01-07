@@ -1,8 +1,13 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { Suspense, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
-import { usePathname, useRouter, useSearchParams } from 'next/navigation';
+import {
+  ReadonlyURLSearchParams,
+  usePathname,
+  useRouter,
+  useSearchParams,
+} from 'next/navigation';
 import AppShell from '@/components/AppShell';
 import RequireAdmin from '@/components/RequireAdmin';
 import ErrorBanner from '@/components/ErrorBanner';
@@ -17,7 +22,7 @@ import { formatDateTime, truncateId } from '@/lib/utils/format';
 
 const DEFAULT_PAGE_SIZE = 20;
 const PAGE_SIZE_OPTIONS = [10, 20, 50, 100];
-const ORDER_FIELDS = ['created_at', 'updated_at'] as const;
+const ORDER_FIELDS = ['created_at', 'updated_at', 'followers'] as const;
 const STATUS_OPTIONS = [
   { value: 'all', label: 'All' },
   { value: 'synced', label: 'Synced' },
@@ -76,9 +81,12 @@ const buildLiveAccountsQuery = (
 });
 
 
-export default function LiveAccountsPage() {
+function LiveAccountsPageContent({
+  searchParams,
+}: {
+  searchParams: ReadonlyURLSearchParams;
+}) {
   const supabase = useMemo(() => createSupabaseBrowserClient(), []);
-  const searchParams = useSearchParams();
   const router = useRouter();
   const pathname = usePathname();
   const initialPage = parsePage(searchParams.get('page'));
@@ -90,9 +98,6 @@ export default function LiveAccountsPage() {
   );
   const initialPlatform = searchParams.get('platform') ?? '';
   const [liveAccounts, setLiveAccounts] = useState<LiveAccountRow[]>([]);
-  const [followerCounts, setFollowerCounts] = useState<Record<string, number>>(
-    {}
-  );
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(initialPage - 1);
   const [pageSize, setPageSize] = useState(initialPageSize);
@@ -118,63 +123,26 @@ export default function LiveAccountsPage() {
       setError(null);
 
       const from = page * pageSize;
-      const to = from + pageSize - 1;
 
-      let liveAccountsQuery = supabase
-        .from('live_accounts')
-        .select(
-          'id,platform,account_id,canonical_url,status,created_at,updated_at',
-          { count: 'exact' }
-        )
-        .order(query.orderBy, { ascending: query.orderDirection === 'asc' })
-        .range(from, to);
-
-      if (query.status !== 'all') {
-        liveAccountsQuery = liveAccountsQuery.eq('status', query.status);
-      }
-
-      if (query.platform) {
-        liveAccountsQuery = liveAccountsQuery.eq('platform', query.platform);
-      }
-
-      const { data, error, count } = await liveAccountsQuery;
+      const { data, error } = await supabase.rpc('admin_list_live_accounts', {
+        limit_count: pageSize,
+        offset_count: from,
+        filter_status: query.status !== 'all' ? query.status : null,
+        filter_platform: query.platform || null,
+        order_by: query.orderBy,
+        order_direction: query.orderDirection,
+      });
 
       if (error) {
         setError(error.message);
         setLiveAccounts([]);
-        setFollowerCounts({});
         setIsLoading(false);
         return;
       }
 
       const rows = (data || []) as LiveAccountRow[];
       setLiveAccounts(rows);
-      setTotal(count || 0);
-
-      if (rows.length === 0) {
-        setFollowerCounts({});
-        setIsLoading(false);
-        return;
-      }
-
-      const ids = rows.map((row) => row.id);
-      const { data: followData, error: followError } = await supabase
-        .from('follows')
-        .select('live_account_id')
-        .in('live_account_id', ids)
-        .eq('status', 'active');
-
-      if (followError) {
-        setError(followError.message);
-      }
-
-      const counts: Record<string, number> = {};
-      (followData || []).forEach((follow) => {
-        const id = follow.live_account_id as string;
-        counts[id] = (counts[id] || 0) + 1;
-      });
-
-      setFollowerCounts(counts);
+      setTotal(rows[0]?.total_count ? Number(rows[0].total_count) : 0);
       setIsLoading(false);
     };
 
@@ -296,6 +264,7 @@ export default function LiveAccountsPage() {
             >
               <option value="created_at">Created</option>
               <option value="updated_at">Updated</option>
+              <option value="followers">Followers</option>
             </select>
           </label>
 
@@ -356,6 +325,7 @@ export default function LiveAccountsPage() {
                     <th className="px-4 py-3">Status</th>
                     <th className="px-4 py-3">Followers</th>
                     <th className="px-4 py-3">Created</th>
+                    <th className="px-4 py-3">Updated</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
@@ -391,10 +361,13 @@ export default function LiveAccountsPage() {
                         <StatusBadge value={account.status} />
                       </td>
                       <td className="px-4 py-3 text-slate-600">
-                        {followerCounts[account.id] || 0}
+                        {account.follower_count || 0}
                       </td>
                       <td className="px-4 py-3 text-slate-600">
                         {formatDateTime(account.created_at)}
+                      </td>
+                      <td className="px-4 py-3 text-slate-600">
+                        {formatDateTime(account.updated_at)}
                       </td>
                     </tr>
                   ))}
@@ -416,5 +389,23 @@ export default function LiveAccountsPage() {
         )}
       </AppShell>
     </RequireAdmin>
+  );
+}
+
+function LiveAccountsPageContainer() {
+  const searchParams = useSearchParams();
+  return (
+    <LiveAccountsPageContent
+      key={searchParams.toString()}
+      searchParams={searchParams}
+    />
+  );
+}
+
+export default function LiveAccountsPage() {
+  return (
+    <Suspense fallback={<LoadingSkeleton rows={6} />}>
+      <LiveAccountsPageContainer />
+    </Suspense>
   );
 }

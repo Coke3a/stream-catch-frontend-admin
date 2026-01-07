@@ -1,11 +1,13 @@
 export type AdminUserRow = {
   id: string;
   created_at: string;
+  updated_at?: string | null;
   email: string | null;
   role: string | null;
   last_sign_in_at?: string | null;
   email_confirmed_at?: string | null;
   last_seen_at?: string | null;
+  status?: string | null;
   is_admin?: boolean | null;
   total_count?: number | null;
 };
@@ -55,6 +57,8 @@ export type RecordingRow = {
   duration_sec?: number | null;
   size_bytes?: number | null;
   storage_path?: string | null;
+  created_at?: string | null;
+  updated_at?: string | null;
   live_accounts?: LiveAccountRow | null;
 };
 

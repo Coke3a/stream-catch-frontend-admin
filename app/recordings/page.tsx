@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import AppShell from '@/components/AppShell';
 import RequireAdmin from '@/components/RequireAdmin';
 import ErrorBanner from '@/components/ErrorBanner';
@@ -13,10 +14,30 @@ import CopyButton from '@/components/CopyButton';
 import { useSession } from '@/components/AuthProvider';
 import { createSupabaseBrowserClient } from '@/lib/supabase/client';
 import { RecordingRow, LiveAccountRow } from '@/types/admin';
-import { formatDateTime, formatDuration, isUuid, truncateId } from '@/lib/utils/format';
+import {
+  formatDateTime,
+  formatDuration,
+  isUuid,
+  truncateId,
+} from '@/lib/utils/format';
 import { fetchAdminWatchUrl } from '@/lib/api/admin';
 
-const PAGE_SIZE = 20;
+const DEFAULT_PAGE_SIZE = 20;
+const PAGE_SIZE_OPTIONS = [10, 20, 50, 100];
+const ORDER_FIELDS = ['created_at', 'updated_at'] as const;
+const STATUS_OPTIONS = [
+  { value: 'all', label: 'All' },
+  { value: 'ready', label: 'Ready' },
+  { value: 'failed', label: 'Failed' },
+  { value: 'uploading', label: 'Uploading' },
+  { value: 'waiting_upload', label: 'Waiting upload' },
+  { value: 'live_recording', label: 'Live recording' },
+  { value: 'live_end', label: 'Live end' },
+  { value: 'expired_deleted', label: 'Expired deleted' },
+];
+
+type OrderBy = (typeof ORDER_FIELDS)[number];
+type OrderDirection = 'asc' | 'desc';
 
 type LiveAccountSummary = Pick<
   LiveAccountRow,
@@ -27,20 +48,91 @@ type RecordingListRow = Omit<RecordingRow, 'live_accounts'> & {
   live_accounts?: LiveAccountSummary | LiveAccountSummary[] | null;
 };
 
+type RecordingsQuery = {
+  status: string;
+  platform: string;
+  liveAccountId: string;
+  orderBy: OrderBy;
+  orderDirection: OrderDirection;
+};
+
+const parsePage = (value: string | null) => {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed) || parsed <= 0) {
+    return 1;
+  }
+  return Math.floor(parsed);
+};
+
+const parsePageSize = (value: string | null) => {
+  const parsed = Number(value);
+  if (PAGE_SIZE_OPTIONS.includes(parsed)) {
+    return parsed;
+  }
+  return DEFAULT_PAGE_SIZE;
+};
+
+const parseOrderBy = (value: string | null): OrderBy =>
+  ORDER_FIELDS.includes(value as OrderBy) ? (value as OrderBy) : 'created_at';
+
+const parseOrderDirection = (value: string | null): OrderDirection =>
+  value === 'asc' || value === 'desc' ? value : 'desc';
+
+const parseStatus = (value: string | null) =>
+  STATUS_OPTIONS.some((option) => option.value === value)
+    ? (value as string)
+    : 'all';
+
+const buildRecordingsQuery = (
+  status: string,
+  platform: string,
+  liveAccountId: string,
+  orderBy: OrderBy,
+  orderDirection: OrderDirection
+): RecordingsQuery => ({
+  status,
+  platform,
+  liveAccountId,
+  orderBy,
+  orderDirection,
+});
+
+
 export default function RecordingsPage() {
   const supabase = useMemo(() => createSupabaseBrowserClient(), []);
   const session = useSession();
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const pathname = usePathname();
+  const initialPage = parsePage(searchParams.get('page'));
+  const initialPageSize = parsePageSize(searchParams.get('pageSize'));
+  const initialStatus = parseStatus(searchParams.get('status'));
+  const initialPlatform = searchParams.get('platform') ?? '';
+  const initialLiveAccountId = searchParams.get('liveAccountId') ?? '';
+  const initialOrderBy = parseOrderBy(searchParams.get('orderBy'));
+  const initialOrderDirection = parseOrderDirection(
+    searchParams.get('orderDirection')
+  );
   const [recordings, setRecordings] = useState<RecordingListRow[]>([]);
   const [total, setTotal] = useState(0);
-  const [page, setPage] = useState(0);
-  const [statusFilter, setStatusFilter] = useState('all');
-  const [platformFilter, setPlatformFilter] = useState('');
-  const [liveAccountFilter, setLiveAccountFilter] = useState('');
-  const [query, setQuery] = useState({
-    status: 'all',
-    platform: '',
-    liveAccountId: '',
-  });
+  const [page, setPage] = useState(initialPage - 1);
+  const [pageSize, setPageSize] = useState(initialPageSize);
+  const [statusFilter, setStatusFilter] = useState(initialStatus);
+  const [platformFilter, setPlatformFilter] = useState(initialPlatform);
+  const [liveAccountFilter, setLiveAccountFilter] =
+    useState(initialLiveAccountId);
+  const [orderBy, setOrderBy] = useState<OrderBy>(initialOrderBy);
+  const [orderDirection, setOrderDirection] =
+    useState<OrderDirection>(initialOrderDirection);
+  const [query, setQuery] = useState<RecordingsQuery>(() =>
+    buildRecordingsQuery(
+      initialStatus,
+      initialPlatform,
+      initialLiveAccountId,
+      initialOrderBy,
+      initialOrderDirection
+    )
+  );
   const [error, setError] = useState<string | null>(null);
   const [watchError, setWatchError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -51,8 +143,8 @@ export default function RecordingsPage() {
       setIsLoading(true);
       setError(null);
 
-      const from = page * PAGE_SIZE;
-      const to = from + PAGE_SIZE - 1;
+      const from = page * pageSize;
+      const to = from + pageSize - 1;
 
       if (query.liveAccountId && !isUuid(query.liveAccountId)) {
         setError('Live account ID must be a valid UUID.');
@@ -69,7 +161,7 @@ export default function RecordingsPage() {
       let recordingsQuery = supabase
         .from('recordings')
         .select(select, { count: 'exact' })
-        .order('started_at', { ascending: false })
+        .order(query.orderBy, { ascending: query.orderDirection === 'asc' })
         .range(from, to);
 
       if (query.status !== 'all') {
@@ -100,7 +192,7 @@ export default function RecordingsPage() {
     };
 
     loadRecordings();
-  }, [page, query, supabase]);
+  }, [page, pageSize, query, supabase]);
 
   const handleWatch = async (recordingId: string) => {
     if (!session?.access_token) {
@@ -126,14 +218,78 @@ export default function RecordingsPage() {
     }
   };
 
+  const updateQueryParams = (updates: Record<string, string | number | null>) => {
+    const params = new URLSearchParams(searchParams.toString());
+    Object.entries(updates).forEach(([key, value]) => {
+      if (value === null || value === '') {
+        params.delete(key);
+      } else {
+        params.set(key, String(value));
+      }
+    });
+    const queryString = params.toString();
+    router.replace(queryString ? `${pathname}?${queryString}` : pathname, {
+      scroll: false,
+    });
+  };
+
   const handleFilter = (event: React.FormEvent) => {
     event.preventDefault();
+    const trimmedPlatform = platformFilter.trim().toLowerCase();
+    const trimmedLiveAccount = liveAccountFilter.trim();
     setPage(0);
     setQuery({
       status: statusFilter,
-      platform: platformFilter.trim().toLowerCase(),
-      liveAccountId: liveAccountFilter.trim(),
+      platform: trimmedPlatform,
+      liveAccountId: trimmedLiveAccount,
+      orderBy,
+      orderDirection,
     });
+    setPlatformFilter(trimmedPlatform);
+    setLiveAccountFilter(trimmedLiveAccount);
+    updateQueryParams({
+      page: 1,
+      pageSize,
+      status: statusFilter !== 'all' ? statusFilter : null,
+      platform: trimmedPlatform || null,
+      liveAccountId: trimmedLiveAccount || null,
+      orderBy,
+      orderDirection,
+    });
+  };
+
+  const handleClear = () => {
+    setStatusFilter('all');
+    setPlatformFilter('');
+    setLiveAccountFilter('');
+    setPage(0);
+    setQuery({
+      status: 'all',
+      platform: '',
+      liveAccountId: '',
+      orderBy,
+      orderDirection,
+    });
+    updateQueryParams({
+      page: 1,
+      pageSize,
+      status: null,
+      platform: null,
+      liveAccountId: null,
+      orderBy,
+      orderDirection,
+    });
+  };
+
+  const handlePageChange = (nextPage: number) => {
+    setPage(nextPage);
+    updateQueryParams({ page: nextPage + 1 });
+  };
+
+  const handlePageSizeChange = (nextPageSize: number) => {
+    setPageSize(nextPageSize);
+    setPage(0);
+    updateQueryParams({ page: 1, pageSize: nextPageSize });
   };
 
   return (
@@ -144,7 +300,7 @@ export default function RecordingsPage() {
       >
         <form
           onSubmit={handleFilter}
-          className="mb-6 grid gap-3 rounded-2xl border border-slate-200/70 bg-white/80 p-4 shadow-sm sm:grid-cols-2 lg:grid-cols-4"
+          className="mb-6 grid gap-3 rounded-2xl border border-slate-200/70 bg-white/80 p-4 shadow-sm sm:grid-cols-2 lg:grid-cols-6"
         >
           <label className="text-xs font-semibold uppercase tracking-wide text-slate-500">
             Status
@@ -153,13 +309,11 @@ export default function RecordingsPage() {
               onChange={(event) => setStatusFilter(event.target.value)}
               className="mt-2 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700"
             >
-              <option value="all">All</option>
-              <option value="ready">Ready</option>
-              <option value="failed">Failed</option>
-              <option value="uploading">Uploading</option>
-              <option value="waiting_upload">Waiting upload</option>
-              <option value="live_recording">Live recording</option>
-              <option value="live_end">Live end</option>
+              {STATUS_OPTIONS.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
             </select>
           </label>
 
@@ -183,13 +337,52 @@ export default function RecordingsPage() {
             />
           </label>
 
-          <div className="flex items-end">
+          <label className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+            Order by
+            <select
+              value={orderBy}
+              onChange={(event) =>
+                setOrderBy(parseOrderBy(event.target.value))
+              }
+              className="mt-2 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700"
+            >
+              <option value="created_at">Created</option>
+              <option value="updated_at">Updated</option>
+            </select>
+          </label>
+
+          <label className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+            Direction
+            <select
+              value={orderDirection}
+              onChange={(event) =>
+                setOrderDirection(parseOrderDirection(event.target.value))
+              }
+              className="mt-2 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700"
+            >
+              <option value="desc">Newest</option>
+              <option value="asc">Oldest</option>
+            </select>
+          </label>
+
+          <div className="flex items-end gap-2">
             <button
               type="submit"
-              className="w-full rounded-full border border-slate-300 px-4 py-2 text-xs font-semibold uppercase tracking-wide text-slate-700 hover:border-slate-500"
+              className="flex-1 rounded-full border border-slate-300 px-4 py-2 text-xs font-semibold uppercase tracking-wide text-slate-700 hover:border-slate-500"
             >
               Apply filters
             </button>
+            {(statusFilter !== 'all' ||
+              platformFilter ||
+              liveAccountFilter) && (
+              <button
+                type="button"
+                onClick={handleClear}
+                className="rounded-full border border-slate-200 px-4 py-2 text-xs font-semibold uppercase tracking-wide text-slate-500 hover:border-slate-400"
+              >
+                Clear
+              </button>
+            )}
           </div>
         </form>
 
@@ -299,9 +492,11 @@ export default function RecordingsPage() {
         {!isLoading && recordings.length > 0 && (
           <Pagination
             page={page}
-            pageSize={PAGE_SIZE}
+            pageSize={pageSize}
             total={total}
-            onPageChange={setPage}
+            onPageChange={handlePageChange}
+            onPageSizeChange={handlePageSizeChange}
+            pageSizeOptions={PAGE_SIZE_OPTIONS}
           />
         )}
       </AppShell>

@@ -18,6 +18,7 @@ type AdminStats = {
   recordings_total: number;
   recordings_ready: number;
   recordings_failed: number;
+  recordings_recording: number;
 };
 
 export default function DashboardPage() {
@@ -42,6 +43,7 @@ export default function DashboardPage() {
           recordingsTotal,
           recordingsReady,
           recordingsFailed,
+          recordingsRecording,
         ] = await Promise.all([
           supabase.rpc('admin_list_users', {
             limit_count: 1,
@@ -67,6 +69,10 @@ export default function DashboardPage() {
             .from('recordings')
             .select('id', { count: 'exact', head: true })
             .eq('status', 'failed'),
+          supabase
+            .from('recordings')
+            .select('id', { count: 'exact', head: true })
+            .eq('status', 'live_recording'),
         ]);
 
         const errors = [
@@ -76,6 +82,7 @@ export default function DashboardPage() {
           recordingsTotal.error,
           recordingsReady.error,
           recordingsFailed.error,
+          recordingsRecording.error,
         ].filter(Boolean);
 
         if (errors.length > 0) {
@@ -93,6 +100,7 @@ export default function DashboardPage() {
           recordings_total: recordingsTotal.count || 0,
           recordings_ready: recordingsReady.count || 0,
           recordings_failed: recordingsFailed.count || 0,
+          recordings_recording: recordingsRecording.count || 0,
         });
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Failed to load stats');
@@ -129,6 +137,10 @@ export default function DashboardPage() {
             <StatCard
               label="Recordings total"
               value={stats.recordings_total}
+            />
+            <StatCard
+              label="Currently recording"
+              value={stats.recordings_recording}
             />
             <StatCard label="Recordings ready" value={stats.recordings_ready} />
             <StatCard

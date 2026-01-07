@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import AppShell from '@/components/AppShell';
 import RequireAdmin from '@/components/RequireAdmin';
 import ErrorBanner from '@/components/ErrorBanner';
@@ -14,7 +15,26 @@ import { createSupabaseBrowserClient } from '@/lib/supabase/client';
 import { AdminUserRow, PlanRow, SubscriptionRow } from '@/types/admin';
 import { formatDateTime, isUuid, truncateId } from '@/lib/utils/format';
 
-const PAGE_SIZE = 20;
+const DEFAULT_PAGE_SIZE = 20;
+const PAGE_SIZE_OPTIONS = [10, 20, 50, 100];
+const ORDER_FIELDS = ['created_at', 'updated_at'] as const;
+const USER_STATUS_OPTIONS = [
+  { value: 'all', label: 'All' },
+  { value: 'active', label: 'Active' },
+  { value: 'blocked', label: 'Blocked' },
+  { value: 'inactive', label: 'Inactive' },
+];
+
+type OrderBy = (typeof ORDER_FIELDS)[number];
+type OrderDirection = 'asc' | 'desc';
+
+type UserQuery = {
+  userId: string;
+  email: string;
+  status: string;
+  orderBy: OrderBy;
+  orderDirection: OrderDirection;
+};
 
 type PlanSummary = Pick<PlanRow, 'id' | 'name'>;
 
@@ -25,16 +45,84 @@ type SubscriptionListRow = Pick<
   plan?: PlanSummary | PlanSummary[] | null;
 };
 
+const parsePage = (value: string | null) => {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed) || parsed <= 0) {
+    return 1;
+  }
+  return Math.floor(parsed);
+};
+
+const parsePageSize = (value: string | null) => {
+  const parsed = Number(value);
+  if (PAGE_SIZE_OPTIONS.includes(parsed)) {
+    return parsed;
+  }
+  return DEFAULT_PAGE_SIZE;
+};
+
+const parseOrderBy = (value: string | null): OrderBy =>
+  ORDER_FIELDS.includes(value as OrderBy) ? (value as OrderBy) : 'created_at';
+
+const parseOrderDirection = (value: string | null): OrderDirection =>
+  value === 'asc' || value === 'desc' ? value : 'desc';
+
+const parseStatus = (value: string | null) =>
+  USER_STATUS_OPTIONS.some((option) => option.value === value)
+    ? (value as string)
+    : 'all';
+
+const buildUserQuery = (
+  searchValue: string,
+  status: string,
+  orderBy: OrderBy,
+  orderDirection: OrderDirection
+): UserQuery => {
+  const trimmed = searchValue.trim();
+  const isSearchUuid = Boolean(trimmed) && isUuid(trimmed);
+  return {
+    userId: isSearchUuid ? trimmed : '',
+    email: !isSearchUuid && trimmed ? trimmed : '',
+    status,
+    orderBy,
+    orderDirection,
+  };
+};
+
+
 export default function UsersPage() {
   const supabase = useMemo(() => createSupabaseBrowserClient(), []);
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const pathname = usePathname();
+  const initialPage = parsePage(searchParams.get('page'));
+  const initialPageSize = parsePageSize(searchParams.get('pageSize'));
+  const initialStatus = parseStatus(searchParams.get('status'));
+  const initialOrderBy = parseOrderBy(searchParams.get('orderBy'));
+  const initialOrderDirection = parseOrderDirection(
+    searchParams.get('orderDirection')
+  );
+  const initialSearch = searchParams.get('search') ?? '';
   const [users, setUsers] = useState<AdminUserRow[]>([]);
   const [subscriptions, setSubscriptions] = useState<
     Record<string, SubscriptionListRow | null>
   >({});
   const [total, setTotal] = useState(0);
-  const [page, setPage] = useState(0);
-  const [search, setSearch] = useState('');
-  const [query, setQuery] = useState('');
+  const [page, setPage] = useState(initialPage - 1);
+  const [pageSize, setPageSize] = useState(initialPageSize);
+  const [search, setSearch] = useState(initialSearch);
+  const [statusFilter, setStatusFilter] = useState(initialStatus);
+  const [orderBy, setOrderBy] = useState<OrderBy>(initialOrderBy);
+  const [orderDirection, setOrderDirection] =
+    useState<OrderDirection>(initialOrderDirection);
+  const [query, setQuery] = useState<UserQuery>(() =>
+    buildUserQuery(
+      initialSearch,
+      initialStatus,
+      initialOrderBy,
+      initialOrderDirection
+    )
+  );
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -43,21 +131,15 @@ export default function UsersPage() {
       setIsLoading(true);
       setError(null);
 
-      const from = page * PAGE_SIZE;
-
-      if (query && !isUuid(query)) {
-        setUsers([]);
-        setTotal(0);
-        setSubscriptions({});
-        setError('Enter a valid user UUID to search.');
-        setIsLoading(false);
-        return;
-      }
-
+      const from = page * pageSize;
       const { data, error } = await supabase.rpc('admin_list_users', {
-        limit_count: PAGE_SIZE,
+        limit_count: pageSize,
         offset_count: from,
-        filter_user_id: query || null,
+        filter_user_id: query.userId || null,
+        filter_email: query.email || null,
+        filter_status: query.status !== 'all' ? query.status : null,
+        order_by: query.orderBy,
+        order_direction: query.orderDirection,
       });
 
       if (error) {
@@ -102,12 +184,75 @@ export default function UsersPage() {
     };
 
     loadUsers();
-  }, [page, query, supabase]);
+  }, [page, pageSize, query, supabase]);
+
+  const updateQueryParams = (updates: Record<string, string | number | null>) => {
+    const params = new URLSearchParams(searchParams.toString());
+    Object.entries(updates).forEach(([key, value]) => {
+      if (value === null || value === '') {
+        params.delete(key);
+      } else {
+        params.set(key, String(value));
+      }
+    });
+    const queryString = params.toString();
+    router.replace(queryString ? `${pathname}?${queryString}` : pathname, {
+      scroll: false,
+    });
+  };
 
   const handleSearch = (event: React.FormEvent) => {
     event.preventDefault();
+    const trimmedSearch = search.trim();
+    const nextQuery = buildUserQuery(
+      trimmedSearch,
+      statusFilter,
+      orderBy,
+      orderDirection
+    );
+    setSearch(trimmedSearch);
     setPage(0);
-    setQuery(search.trim());
+    setQuery(nextQuery);
+    updateQueryParams({
+      page: 1,
+      pageSize,
+      search: trimmedSearch || null,
+      status: statusFilter !== 'all' ? statusFilter : null,
+      orderBy,
+      orderDirection,
+    });
+  };
+
+  const handleClear = () => {
+    const nextQuery = buildUserQuery(
+      '',
+      'all',
+      orderBy,
+      orderDirection
+    );
+    setSearch('');
+    setStatusFilter('all');
+    setPage(0);
+    setQuery(nextQuery);
+    updateQueryParams({
+      page: 1,
+      pageSize,
+      search: null,
+      status: null,
+      orderBy,
+      orderDirection,
+    });
+  };
+
+  const handlePageChange = (nextPage: number) => {
+    setPage(nextPage);
+    updateQueryParams({ page: nextPage + 1 });
+  };
+
+  const handlePageSizeChange = (nextPageSize: number) => {
+    setPageSize(nextPageSize);
+    setPage(0);
+    updateQueryParams({ page: 1, pageSize: nextPageSize });
   };
 
   return (
@@ -118,33 +263,78 @@ export default function UsersPage() {
       >
         <form
           onSubmit={handleSearch}
-          className="mb-6 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center"
+          className="mb-6 grid gap-3 rounded-2xl border border-slate-200/70 bg-white/80 p-4 shadow-sm sm:grid-cols-2 lg:grid-cols-5"
         >
-          <input
-            value={search}
-            onChange={(event) => setSearch(event.target.value)}
-            placeholder="Search by user UUID"
-            className="w-full max-w-md rounded-2xl border border-slate-200 bg-white/80 px-4 py-2 text-sm text-slate-900 outline-none transition focus:border-slate-400"
-          />
-          <button
-            type="submit"
-            className="w-full rounded-full border border-slate-300 px-4 py-2 text-xs font-semibold uppercase tracking-wide text-slate-700 hover:border-slate-500 sm:w-auto"
-          >
+          <label className="text-xs font-semibold uppercase tracking-wide text-slate-500">
             Search
-          </button>
-          {query && (
-            <button
-              type="button"
-              onClick={() => {
-                setSearch('');
-                setQuery('');
-                setPage(0);
-              }}
-              className="w-full rounded-full border border-slate-200 px-4 py-2 text-xs font-semibold uppercase tracking-wide text-slate-500 hover:border-slate-400 sm:w-auto"
+            <input
+              value={search}
+              onChange={(event) => setSearch(event.target.value)}
+              placeholder="Email or user UUID"
+              className="mt-2 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700"
+            />
+          </label>
+
+          <label className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+            Status
+            <select
+              value={statusFilter}
+              onChange={(event) => setStatusFilter(event.target.value)}
+              className="mt-2 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700"
             >
-              Clear
+              {USER_STATUS_OPTIONS.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+          </label>
+
+          <label className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+            Order by
+            <select
+              value={orderBy}
+              onChange={(event) =>
+                setOrderBy(parseOrderBy(event.target.value))
+              }
+              className="mt-2 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700"
+            >
+              <option value="created_at">Created</option>
+              <option value="updated_at">Updated</option>
+            </select>
+          </label>
+
+          <label className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+            Direction
+            <select
+              value={orderDirection}
+              onChange={(event) =>
+                setOrderDirection(parseOrderDirection(event.target.value))
+              }
+              className="mt-2 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700"
+            >
+              <option value="desc">Newest</option>
+              <option value="asc">Oldest</option>
+            </select>
+          </label>
+
+          <div className="flex items-end gap-2">
+            <button
+              type="submit"
+              className="flex-1 rounded-full border border-slate-300 px-4 py-2 text-xs font-semibold uppercase tracking-wide text-slate-700 hover:border-slate-500"
+            >
+              Apply filters
             </button>
-          )}
+            {(search || statusFilter !== 'all') && (
+              <button
+                type="button"
+                onClick={handleClear}
+                className="rounded-full border border-slate-200 px-4 py-2 text-xs font-semibold uppercase tracking-wide text-slate-500 hover:border-slate-400"
+              >
+                Clear
+              </button>
+            )}
+          </div>
         </form>
 
         {error && (
@@ -158,7 +348,7 @@ export default function UsersPage() {
         ) : users.length === 0 ? (
           <EmptyState
             title="No users found"
-            message="Try a different user ID or clear the search filter."
+            message="Try adjusting your filters or clear the search."
           />
         ) : (
           <div className="overflow-hidden rounded-2xl border border-slate-200/70 bg-white/80 shadow-sm">
@@ -237,9 +427,11 @@ export default function UsersPage() {
         {!isLoading && users.length > 0 && (
           <Pagination
             page={page}
-            pageSize={PAGE_SIZE}
+            pageSize={pageSize}
             total={total}
-            onPageChange={setPage}
+            onPageChange={handlePageChange}
+            onPageSizeChange={handlePageSizeChange}
+            pageSizeOptions={PAGE_SIZE_OPTIONS}
           />
         )}
       </AppShell>

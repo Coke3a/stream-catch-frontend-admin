@@ -15,6 +15,8 @@ type AdminStats = {
   total_users: number;
   active_subscriptions: number;
   active_follows: number;
+  live_accounts_total: number;
+  live_accounts_synced: number;
   recordings_total: number;
   recordings_ready: number;
   recordings_failed: number;
@@ -40,6 +42,8 @@ export default function DashboardPage() {
           totalUsers,
           activeSubscriptions,
           activeFollows,
+          liveAccountsTotal,
+          liveAccountsSynced,
           recordingsTotal,
           recordingsReady,
           recordingsFailed,
@@ -58,6 +62,13 @@ export default function DashboardPage() {
             .from('follows')
             .select('user_id', { count: 'exact', head: true })
             .eq('status', 'active'),
+          supabase
+            .from('live_accounts')
+            .select('id', { count: 'exact', head: true }),
+          supabase
+            .from('live_accounts')
+            .select('id', { count: 'exact', head: true })
+            .eq('status', 'synced'),
           supabase
             .from('recordings')
             .select('id', { count: 'exact', head: true }),
@@ -79,6 +90,8 @@ export default function DashboardPage() {
           totalUsers.error,
           activeSubscriptions.error,
           activeFollows.error,
+          liveAccountsTotal.error,
+          liveAccountsSynced.error,
           recordingsTotal.error,
           recordingsReady.error,
           recordingsFailed.error,
@@ -97,6 +110,8 @@ export default function DashboardPage() {
           total_users: totalUsersCount,
           active_subscriptions: activeSubscriptions.count || 0,
           active_follows: activeFollows.count || 0,
+          live_accounts_total: liveAccountsTotal.count || 0,
+          live_accounts_synced: liveAccountsSynced.count || 0,
           recordings_total: recordingsTotal.count || 0,
           recordings_ready: recordingsReady.count || 0,
           recordings_failed: recordingsFailed.count || 0,
@@ -134,6 +149,14 @@ export default function DashboardPage() {
               value={stats.active_subscriptions}
             />
             <StatCard label="Active follows" value={stats.active_follows} />
+            <StatCard
+              label="Total live accounts"
+              value={stats.live_accounts_total}
+            />
+            <StatCard
+              label="Total live accounts synced"
+              value={stats.live_accounts_synced}
+            />
             <StatCard
               label="Recordings total"
               value={stats.recordings_total}

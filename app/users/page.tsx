@@ -115,6 +115,9 @@ function UsersPageContent({
   const [subscriptions, setSubscriptions] = useState<
     Record<string, SubscriptionListRow | null>
   >({});
+  const [trialInfo, setTrialInfo] = useState<
+    Record<string, { trial_ends_at: string | null }>
+  >({});
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(initialPage - 1);
   const [pageSize, setPageSize] = useState(initialPageSize);
@@ -154,6 +157,7 @@ function UsersPageContent({
         setError(error.message);
         setUsers([]);
         setSubscriptions({});
+        setTrialInfo({});
         setIsLoading(false);
         return;
       }
@@ -164,30 +168,51 @@ function UsersPageContent({
 
       if (rows.length === 0) {
         setSubscriptions({});
+        setTrialInfo({});
         setIsLoading(false);
         return;
       }
 
       const ids = rows.map((row) => row.id);
-      const { data: subs, error: subsError } = await supabase
-        .from('subscriptions')
-        .select('id,user_id,status,starts_at,ends_at,plan:plans(id,name)')
-        .in('user_id', ids)
-        .order('starts_at', { ascending: false });
+      const nowIso = new Date().toISOString();
+      const [subsResult, trialResult] = await Promise.all([
+        supabase
+          .from('subscriptions')
+          .select('id,user_id,status,starts_at,ends_at,plan:plans(id,name)')
+          .in('user_id', ids)
+          .eq('status', 'active')
+          .lte('starts_at', nowIso)
+          .gt('ends_at', nowIso)
+          .order('starts_at', { ascending: false }),
+        supabase
+          .from('app_users')
+          .select('id,trial_ends_at')
+          .in('id', ids),
+      ]);
 
-      if (subsError) {
-        setError(subsError.message);
+      if (subsResult.error) {
+        setError(subsResult.error.message);
       }
 
-      const subscriptionRows = (subs || []) as SubscriptionListRow[];
+      const subscriptionRows = (subsResult.data || []) as SubscriptionListRow[];
       const mapped: Record<string, SubscriptionListRow | null> = {};
       subscriptionRows.forEach((subscription) => {
         if (!mapped[subscription.user_id]) {
           mapped[subscription.user_id] = subscription;
         }
       });
-
       setSubscriptions(mapped);
+
+      if (trialResult.error) {
+        setError(trialResult.error.message);
+      }
+      const trialRows = (trialResult.data || []) as { id: string; trial_ends_at: string | null }[];
+      const trialMap: Record<string, { trial_ends_at: string | null }> = {};
+      trialRows.forEach((row) => {
+        trialMap[row.id] = { trial_ends_at: row.trial_ends_at };
+      });
+      setTrialInfo(trialMap);
+
       setIsLoading(false);
     };
 
@@ -362,7 +387,7 @@ function UsersPageContent({
         ) : (
           <div className="overflow-hidden rounded-2xl border border-slate-200/70 bg-white/80 shadow-sm">
             <div className="overflow-x-auto">
-              <table className="w-full min-w-[960px] text-left text-sm">
+              <table className="w-full min-w-[1060px] text-left text-sm">
                 <thead className="bg-slate-50/80 text-xs font-semibold uppercase tracking-wide text-slate-500">
                   <tr>
                     <th className="px-4 py-3">User</th>
@@ -372,6 +397,7 @@ function UsersPageContent({
                     <th className="px-4 py-3">Created</th>
                     <th className="px-4 py-3">Last sign-in</th>
                     <th className="px-4 py-3">Last seen</th>
+                    <th className="px-4 py-3">Trial</th>
                     <th className="px-4 py-3">Subscription</th>
                     <th className="px-4 py-3">Plan</th>
                     <th className="px-4 py-3">Ends</th>
@@ -384,6 +410,13 @@ function UsersPageContent({
                       ? subscription.plan[0]
                       : subscription?.plan;
                     const isAdmin = Boolean(user.is_admin);
+                    const trial = trialInfo[user.id];
+                    const trialEndsAt = trial?.trial_ends_at;
+                    const trialStatus = !trialEndsAt
+                      ? 'none'
+                      : new Date(trialEndsAt) > new Date()
+                        ? 'active'
+                        : 'expired';
                     return (
                       <tr key={user.id} className="hover:bg-slate-50/60">
                         <td className="px-4 py-3">
@@ -414,6 +447,9 @@ function UsersPageContent({
                         </td>
                         <td className="px-4 py-3 text-slate-600">
                           {formatDateTime(user.last_seen_at)}
+                        </td>
+                        <td className="px-4 py-3">
+                          <StatusBadge value={trialStatus} />
                         </td>
                         <td className="px-4 py-3">
                           <StatusBadge value={subscription?.status || 'none'} />

@@ -30,3 +30,15 @@ export const truncateId = (value: string, length = 8) => {
 
 export const isUuid = (value: string) =>
   /^[0-9a-fA-F-]{36}$/.test(value.trim());
+
+export const formatCurrency = (amountMinor: number, currency = 'usd') => {
+  const amount = amountMinor / 100;
+  try {
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: currency.toUpperCase(),
+    }).format(amount);
+  } catch {
+    return `${amount.toFixed(2)} ${currency.toUpperCase()}`;
+  }
+};

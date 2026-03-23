@@ -11,8 +11,15 @@ import EmptyState from '@/components/EmptyState';
 import StatusBadge from '@/components/StatusBadge';
 import CopyButton from '@/components/CopyButton';
 import Pagination from '@/components/Pagination';
+import StatCard from '@/components/StatCard';
 import { createSupabaseBrowserClient } from '@/lib/supabase/client';
-import { FollowRow, LiveAccountRow, RecordingRow } from '@/types/admin';
+import {
+  FollowRow,
+  LiveAccountCountryStatsRow,
+  LiveAccountRow,
+  LiveAccountStatsRow,
+  RecordingRow,
+} from '@/types/admin';
 import {
   formatDateTime,
   formatDuration,
@@ -30,6 +37,8 @@ export default function LiveAccountDetailPage() {
   const params = useParams();
   const liveAccountId = `${params.id}`;
   const [account, setAccount] = useState<LiveAccountRow | null>(null);
+  const [accountStats, setAccountStats] = useState<LiveAccountStatsRow | null>(null);
+  const [countryStats, setCountryStats] = useState<LiveAccountCountryStatsRow[]>([]);
   const [recordings, setRecordings] = useState<RecordingRow[]>([]);
   const [recordingsTotal, setRecordingsTotal] = useState(0);
   const [followerCount, setFollowerCount] = useState(0);
@@ -68,28 +77,52 @@ export default function LiveAccountDetailPage() {
 
       setAccount(accountData as LiveAccountRow);
 
-      const { count: followerCount } = await supabase
-        .from('follows')
-        .select('live_account_id', { count: 'exact', head: true })
-        .eq('live_account_id', liveAccountId)
-        .eq('status', 'active');
+      // Fetch all related data in parallel
+      const [
+        followerCountResult,
+        followerDataResult,
+        statsResult,
+        countryStatsResult,
+      ] = await Promise.all([
+        supabase
+          .from('follows')
+          .select('live_account_id', { count: 'exact', head: true })
+          .eq('live_account_id', liveAccountId)
+          .eq('status', 'active'),
+        supabase
+          .from('follows')
+          .select('user_id,live_account_id,status,created_at')
+          .eq('live_account_id', liveAccountId)
+          .eq('status', 'active')
+          .order('created_at', { ascending: false }),
+        supabase
+          .from('live_account_stats')
+          .select('live_account_id,global_follow_count,recordings_count,latest_recording_started_at')
+          .eq('live_account_id', liveAccountId)
+          .maybeSingle(),
+        supabase
+          .from('live_account_country_stats')
+          .select('live_account_id,country_code,follow_count,country_region_map(country_code,region)')
+          .eq('live_account_id', liveAccountId)
+          .order('follow_count', { ascending: false }),
+      ]);
 
-      setFollowerCount(followerCount || 0);
+      setFollowerCount(followerCountResult.count || 0);
 
-      const { data: followerData, error: followerError } = await supabase
-        .from('follows')
-        .select('user_id,live_account_id,status,created_at')
-        .eq('live_account_id', liveAccountId)
-        .eq('status', 'active')
-        .order('created_at', { ascending: false });
-
-      if (followerError) {
-        setError(followerError.message);
+      if (followerDataResult.error) {
+        setError(followerDataResult.error.message);
         setFollowers([]);
       } else {
-        setFollowers((followerData || []) as FollowRow[]);
+        setFollowers((followerDataResult.data || []) as FollowRow[]);
       }
 
+      if (statsResult.data) {
+        setAccountStats(statsResult.data as LiveAccountStatsRow);
+      }
+
+      setCountryStats((countryStatsResult.data || []) as LiveAccountCountryStatsRow[]);
+
+      // Recordings with filter/pagination
       const from = page * PAGE_SIZE;
       const to = from + PAGE_SIZE - 1;
 
@@ -150,7 +183,7 @@ export default function LiveAccountDetailPage() {
     <RequireAdmin>
       <AppShell
         title="Live account"
-        description="Inspect account details and manage recording playback."
+        description="Inspect account details, stats, and manage recording playback."
       >
         {error && (
           <div className="mb-6">
@@ -167,6 +200,7 @@ export default function LiveAccountDetailPage() {
           />
         ) : (
           <div className="space-y-8">
+            {/* Account info */}
             <section className="rounded-2xl border border-slate-200/70 bg-white/80 p-6 shadow-sm">
               <div className="flex flex-wrap items-center justify-between gap-4">
                 <div>
@@ -234,6 +268,76 @@ export default function LiveAccountDetailPage() {
               </div>
             </section>
 
+            {/* Aggregated stats */}
+            {accountStats && (
+              <section>
+                <h2 className="mb-4 text-sm font-semibold uppercase tracking-wide text-slate-500">
+                  Aggregated stats
+                </h2>
+                <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                  <StatCard
+                    label="Global follow count"
+                    value={accountStats.global_follow_count}
+                  />
+                  <StatCard
+                    label="Recordings count"
+                    value={accountStats.recordings_count}
+                  />
+                  <StatCard
+                    label="Latest recording started"
+                    value={
+                      accountStats.latest_recording_started_at
+                        ? formatDateTime(accountStats.latest_recording_started_at)
+                        : '-'
+                    }
+                  />
+                </div>
+              </section>
+            )}
+
+            {/* Geographic breakdown */}
+            {countryStats.length > 0 && (
+              <section className="rounded-2xl border border-slate-200/70 bg-white/80 p-6 shadow-sm">
+                <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-500">
+                  Geographic breakdown
+                </h2>
+                <div className="mt-4 overflow-hidden rounded-2xl border border-slate-200">
+                  <div className="overflow-x-auto">
+                    <table className="w-full min-w-[400px] text-left text-sm">
+                      <thead className="bg-slate-50/80 text-xs font-semibold uppercase tracking-wide text-slate-500">
+                        <tr>
+                          <th className="px-4 py-3">Country</th>
+                          <th className="px-4 py-3">Region</th>
+                          <th className="px-4 py-3">Followers</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100">
+                        {countryStats.map((stat) => {
+                          const regionMap = Array.isArray(stat.country_region_map)
+                            ? stat.country_region_map[0]
+                            : stat.country_region_map;
+                          return (
+                            <tr key={stat.country_code}>
+                              <td className="px-4 py-3 font-semibold text-slate-900">
+                                {stat.country_code}
+                              </td>
+                              <td className="px-4 py-3 text-slate-600">
+                                {regionMap?.region || '-'}
+                              </td>
+                              <td className="px-4 py-3 text-slate-600">
+                                {stat.follow_count}
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </section>
+            )}
+
+            {/* Active followers */}
             <section className="rounded-2xl border border-slate-200/70 bg-white/80 p-6 shadow-sm">
               <div className="flex flex-wrap items-center justify-between gap-4">
                 <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-500">
@@ -284,6 +388,7 @@ export default function LiveAccountDetailPage() {
               )}
             </section>
 
+            {/* Recordings */}
             <section className="rounded-2xl border border-slate-200/70 bg-white/80 p-6 shadow-sm">
               <div className="flex flex-wrap items-center justify-between gap-4">
                 <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-500">

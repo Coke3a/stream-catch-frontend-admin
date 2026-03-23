@@ -12,6 +12,12 @@ const NAV_ITEMS = [
   { href: ROUTES.users, label: 'Users' },
   { href: ROUTES.liveAccounts, label: 'Live Accounts' },
   { href: ROUTES.recordings, label: 'Recordings' },
+  { href: ROUTES.jobs, label: 'Jobs' },
+  { href: ROUTES.billing, label: 'Billing' },
+  { href: ROUTES.subscriptions, label: 'Subscriptions' },
+  { href: ROUTES.deliveries, label: 'Deliveries' },
+  { href: ROUTES.telemetry, label: 'Telemetry' },
+  { href: ROUTES.trialConfig, label: 'Trial Config' },
   { href: ROUTES.supportTickets, label: 'Support Tickets' },
 ];
 
@@ -39,7 +45,7 @@ export default function AppShell({
               </p>
               <nav className="mt-3 -mx-4 flex gap-2 overflow-x-auto px-4 pb-2 sm:mx-0 sm:flex-wrap sm:overflow-visible sm:px-0 sm:pb-0">
                 {NAV_ITEMS.map((item) => {
-                  const isActive = pathname === item.href;
+                  const isActive = item.href === '/' ? pathname === '/' : pathname.startsWith(item.href);
                   return (
                     <Link
                       key={item.href}

@@ -4,5 +4,11 @@ export const ROUTES = {
   liveAccounts: '/live-accounts',
   recordings: '/recordings',
   supportTickets: '/support-tickets',
+  jobs: '/jobs',
+  billing: '/billing',
+  subscriptions: '/subscriptions',
+  deliveries: '/deliveries',
+  telemetry: '/telemetry',
+  trialConfig: '/trial-config',
   login: '/login',
 };

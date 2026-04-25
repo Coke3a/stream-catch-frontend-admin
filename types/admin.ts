@@ -59,6 +59,7 @@ export type RecordingRow = {
   duration_sec?: number | null;
   size_bytes?: number | null;
   storage_path?: string | null;
+  storage_provider?: string | null;
   created_at?: string | null;
   updated_at?: string | null;
   live_accounts?: LiveAccountRow | null;

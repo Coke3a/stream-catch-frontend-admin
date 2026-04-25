@@ -163,8 +163,8 @@ function RecordingsPageContent({
       }
 
       const select = query.platform
-        ? 'id,live_account_id,status,started_at,ended_at,duration_sec,storage_path,live_accounts!inner(id,platform,account_id,canonical_url)'
-        : 'id,live_account_id,status,started_at,ended_at,duration_sec,storage_path,live_accounts(id,platform,account_id,canonical_url)';
+        ? 'id,live_account_id,status,started_at,ended_at,duration_sec,storage_path,storage_provider,live_accounts!inner(id,platform,account_id,canonical_url)'
+        : 'id,live_account_id,status,started_at,ended_at,duration_sec,storage_path,storage_provider,live_accounts(id,platform,account_id,canonical_url)';
 
       let recordingsQuery = supabase
         .from('recordings')
@@ -423,6 +423,7 @@ function RecordingsPageContent({
                     <th className="px-4 py-3">Live account</th>
                     <th className="px-4 py-3">Platform</th>
                     <th className="px-4 py-3">Status</th>
+                    <th className="px-4 py-3">Storage</th>
                     <th className="px-4 py-3">Started</th>
                     <th className="px-4 py-3">Duration</th>
                     <th className="px-4 py-3">Actions</th>
@@ -462,6 +463,17 @@ function RecordingsPageContent({
                         </td>
                         <td className="px-4 py-3">
                           <StatusBadge value={recording.status} />
+                        </td>
+                        <td className="px-4 py-3">
+                          <span
+                            className={`rounded-full px-2 py-0.5 text-xs font-medium ${
+                              recording.storage_provider === 'r2'
+                                ? 'bg-blue-100 text-blue-800'
+                                : 'bg-slate-100 text-slate-700'
+                            }`}
+                          >
+                            {recording.storage_provider || 'wasabi'}
+                          </span>
                         </td>
                         <td className="px-4 py-3 text-slate-600">
                           {formatDateTime(recording.started_at)}

@@ -1,4 +1,4 @@
-import { APP_CONFIG } from '@/config/app';
+import { buildBackendUrl } from '@/lib/api/backend';
 
 export type AdminWatchUrlResponse = {
   recording_id: string;
@@ -15,7 +15,7 @@ export const fetchAdminWatchUrl = async (
   accessToken: string
 ) => {
   const response = await fetch(
-    `${APP_CONFIG.backendBaseUrl}/api/v1/admin/recordings/${recordingId}/watch-url`,
+    buildBackendUrl(`/api/v1/admin/recordings/${recordingId}/watch-url`),
     {
       headers: buildHeaders(accessToken),
     }

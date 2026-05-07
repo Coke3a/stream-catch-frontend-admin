@@ -12,7 +12,7 @@ import CopyButton from '@/components/CopyButton';
 import Pagination from '@/components/Pagination';
 import { useSession } from '@/components/AuthProvider';
 import { createSupabaseBrowserClient } from '@/lib/supabase/client';
-import { APP_CONFIG } from '@/config/app';
+import { buildBackendUrl } from '@/lib/api/backend';
 import { formatDateTime, truncateId } from '@/lib/utils/format';
 import { ROUTES } from '@/config/routes';
 import { X } from 'lucide-react';
@@ -186,7 +186,7 @@ export default function TrialConfigPage() {
 
       try {
         const response = await fetch(
-          `${APP_CONFIG.backendBaseUrl}/api/v1/admin/trial-config`,
+          buildBackendUrl('/api/v1/admin/trial-config'),
           {
             headers: {
               Authorization: `Bearer ${session.access_token}`,
@@ -334,7 +334,7 @@ export default function TrialConfigPage() {
 
     try {
       const response = await fetch(
-        `${APP_CONFIG.backendBaseUrl}/api/v1/admin/trial-config`,
+        buildBackendUrl('/api/v1/admin/trial-config'),
         {
           method: 'PUT',
           headers: {
@@ -391,7 +391,7 @@ export default function TrialConfigPage() {
 
     try {
       const response = await fetch(
-        `${APP_CONFIG.backendBaseUrl}/api/v1/admin/trial-backfill`,
+        buildBackendUrl('/api/v1/admin/trial-backfill'),
         {
           method: 'POST',
           headers: {

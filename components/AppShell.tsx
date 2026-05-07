@@ -18,6 +18,7 @@ const NAV_ITEMS = [
   { href: ROUTES.deliveries, label: 'Deliveries' },
   { href: ROUTES.telemetry, label: 'Telemetry' },
   { href: ROUTES.trialConfig, label: 'Trial Config' },
+  { href: ROUTES.countryBlock, label: 'Country Block' },
   { href: ROUTES.supportTickets, label: 'Support Tickets' },
 ];
 

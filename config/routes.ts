@@ -10,5 +10,6 @@ export const ROUTES = {
   deliveries: '/deliveries',
   telemetry: '/telemetry',
   trialConfig: '/trial-config',
+  countryBlock: '/country-block',
   login: '/login',
 };
